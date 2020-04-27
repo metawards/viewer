@@ -200,46 +200,30 @@ class MetaViewD3 {
         }
     }
 
-    const width = this.state.width;
-    const height = this.state.height;
-    console.log(`REDRAW ${width}x${height}`);
+    d3.select(`.${this.className()} > *`).remove();
 
-    d3.select("#map > *").remove();
+    let container = d3.select(`.${this.className()}`);
 
-    const position = [51.505, -0.09]
-    const map = L.map("map").setView(position, 13);
-
-    console.log("DRAWING MAP");
-    console.log(map);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map)
-
-    L.marker(position)
-      .addTo(map)
-      .bindPopup('A pretty CSS3 popup. <br> Easily customizable.')
-
-    let svg = d3.select(map.getPanes().overlayPane).append("svg")
-                .attr('height', height)
-                .attr('width', width)
-                .attr('id', 'svg-viz')
-                .on("click", ()=>{this.state.signalClicked(null)});
-
-    let g = svg.append("g").attr("class", "leaflet-zoom-hide");
-
-    function projectPoint(x, y) {
-        var point = map.latLngToLayerPoint(new L.LatLng(y, x));
-        this.stream.point(point.x, point.y);
+    if (!container){
+      console.log(`Cannot find container element class ${this.className()}`);
+      return;
     }
 
-    let transform = d3.geoTransform({point: projectPoint});
-    let path = d3.geoPath().projection(transform);
+    const width = this.state.width;
+    const height = this.state.height;
+
+    console.log(`REDRAW ${width}x${height}`);
 
     if (!width || !height){
       console.log(`Invalid width or height? ${width} x ${height}`);
       return;
     }
+
+    let svg = container.append('svg')
+      .attr('height', 5000)
+      .attr('width', 5000)
+      .attr('id', 'svg-viz')
+      .on("click", ()=>{this.state.signalClicked(null)});
 
     let mainGroup = svg;
     this._mainGroup = mainGroup;
