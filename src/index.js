@@ -1,17 +1,33 @@
-import React from 'react';
-import ReactDOM from 'react-dom';
+
+import React, { Suspense, lazy } from 'react';
+import ReactDOM from "react-dom";
+import Spinner from 'react-spinkit';
+
+import './reset.css';
 import './index.css';
-import App from './App';
-import * as serviceWorker from './serviceWorker';
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
-);
+const MetaApp = lazy(()=>import('./MetaApp'));
 
-// If you want your app to work offline and load faster, you can change
-// unregister() to register() below. Note this comes with some pitfalls.
-// Learn more about service workers: https://bit.ly/CRA-PWA
-serviceWorker.unregister();
+function App(props) {
+  return (
+    <div>
+      <Suspense fallback={
+          <div className="metawards-center-container">
+            <div>Loading application...</div>
+            <div>
+              <Spinner
+                name="ball-grid-pulse"
+                color="blue"
+                fadeIn="none"
+              />
+            </div>
+          </div>
+        }>
+        <MetaApp/>
+      </Suspense>
+    </div>
+  );
+}
+
+const rootElement = document.getElementById("root");
+ReactDOM.render(<App />, rootElement);
