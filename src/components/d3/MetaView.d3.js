@@ -10,6 +10,18 @@ import styles from '../MetaView.module.css';
 function _null_function(params)
 {}
 
+function handleMouseClick(THIS){
+    console.log("MOUSE CLICK");
+}
+
+function handleMouseOver(THIS){
+    console.log("MOUSE OVER");
+}
+
+function handleMouseOut(THIS){
+    console.log("MOUSE OUT");
+}
+
 /** The main class that renders the graph */
 class MetaViewD3 {
   constructor(props){
@@ -19,6 +31,7 @@ class MetaViewD3 {
 
     this.state = {width: null,
                   height: null,
+                  modelrun: null,
                   signalClicked: _null_function,
                   signalMouseOut: _null_function,
                   signalMouseOver: _null_function,
@@ -29,18 +42,9 @@ class MetaViewD3 {
                  };
 
     this._size_changed = true;
-    this._graph_changed = true;
+    this._wards_changed = true;
 
     this.update(props);
-  }
-
-  updateGraph(params){
-    let w = this.state.width;
-    let h = this.state.height;
-
-    if (!w || !h){
-      return;
-    }
   }
 
   update(props){
@@ -48,6 +52,10 @@ class MetaViewD3 {
 
     console.log("UPDATE");
     console.log(props);
+
+    if (props.hasOwnProperty("modelrun")){
+        this.updateModelRun(props.modelrun);
+    }
 
     if (props.hasOwnProperty("width")){
       if (this.state.width !== props.width){
@@ -95,12 +103,100 @@ class MetaViewD3 {
     }
   }
 
+  updateModelRun(modelrun){
+    let w = this.state.width;
+    let h = this.state.height;
+
+    console.log(`updateModelRun ${w} ${h}`);
+
+    this.state.modelrun = modelrun;
+
+    if (!w || !h){
+      return;
+    }
+
+    let wards = null;
+
+    if (modelrun){
+      wards = modelrun.getWards();
+    }
+
+    console.log("WARDS");
+    console.log(wards);
+
+    //the social object will cache the 'getGraph' result, meaning
+    //that any change in this object signals that the graph needs
+    //to be redrawn
+    if (wards !== this.state.wards){
+        this.state.wards = wards;
+
+        //this view needs to clone its own copy of the wards, as
+        //D3 will update the wards object. We need to clone in case
+        //two MetaView.d3 views are viewing the same wards
+        wards = lodash.cloneDeep(this.state.wards);
+
+        this._wards = wards;
+        this._wards_changed = true;
+    }
+    else{
+        console.log("NO CHANGE IN WARDS");
+    }
+
+    console.log(`wards changed? ${this._wards_changed}`);
+  }
+
   className(){
     return `MetaViewD3-${this.state.uid}`;
   }
 
+  _updateNode(data){
+    let node = this._mainGroup.select(".wards-group").selectAll(".node");
+
+    console.log(node);
+
+    console.log("HERE");
+    console.log(data);
+
+    node = node.data(data, d=>d.id)
+               .join(
+                 enter => enter.append("circle")
+                               .attr("class", `node ${styles.node}`),
+                 update => update.attr("class",
+                                       `node ${styles.node}`)
+               )
+               .attr("r", 10)
+               .attr("id", d=>{return d.id})
+               .attr("cx", d=>{return d[0]})
+               .attr("cy", d=>{return d[1]})
+               .on("click", handleMouseClick(this))
+               .on("mouseover", handleMouseOver(this))
+               .on("mouseout", handleMouseOut(this));
+
+    return node;
+  }
+
+  _updateSimulation(){
+    console.log("Update simulation");
+  }
+
   drawFromScratch(){
     console.log("DRAW FROM SCRATCH");
+
+    let wards = this._wards;
+
+    if (!wards){
+        console.log(this.state.modelrun);
+
+        if (this.state.modelrun){
+          this.updateModelRun(this.state.modelrun);
+        }
+
+        wards = this._wards;
+        if (!wards){
+          console.log("Nothing to draw...");
+          return;
+        }
+    }
 
     d3.select(`.${this.className()} > *`).remove();
 
@@ -130,9 +226,9 @@ class MetaViewD3 {
     let mainGroup = svg;
     this._mainGroup = mainGroup;
 
-    mainGroup.append("g").attr("class", "link-group");
-    mainGroup.append("g").attr("class", "node-group");
-    mainGroup.append("g").attr("class", "node_text-group");
+    mainGroup.append("g").attr("class", "wards-group");
+
+    this._node = this._updateNode(wards);
 
     this._is_drawn = true;
   }
@@ -141,7 +237,7 @@ class MetaViewD3 {
     if (!this._is_drawn){
       this.drawFromScratch();
       this._size_changed = false;
-      this._graph_changed = false;
+      this._wards_changed = false;
       return;
     }
 
@@ -156,11 +252,9 @@ class MetaViewD3 {
       update_simulation = true;
     }
 
-    if (this._graph_changed){
-      this._node = this._updateNode(this._graph.nodes);
-      this._label = this._updateNodeText(this._graph.nodes);
-      this._link = this._updateLink(this._graph.edges);
-      this._graph_changed = false;
+    if (this._wards_changed){
+      this._node = this._updateNode(this._wards);
+      this._wards_changed = false;
       update_simulation = true;
     }
 
