@@ -3,6 +3,8 @@ import * as d3 from 'd3';
 
 import lodash from 'lodash';
 
+import L from 'leaflet';
+
 import { v4 as uuidv4 } from 'uuid';
 
 import styles from '../MetaView.module.css';
@@ -164,7 +166,7 @@ class MetaViewD3 {
                  update => update.attr("class",
                                        `node ${styles.node}`)
                )
-               .attr("r", 10)
+               .attr("r", 1)
                .attr("id", d=>{return d.id})
                .attr("cx", d=>{return d[0]})
                .attr("cy", d=>{return d[1]})
@@ -198,30 +200,46 @@ class MetaViewD3 {
         }
     }
 
-    d3.select(`.${this.className()} > *`).remove();
-
-    let container = d3.select(`.${this.className()}`);
-
-    if (!container){
-      console.log(`Cannot find container element class ${this.className()}`);
-      return;
-    }
-
     const width = this.state.width;
     const height = this.state.height;
-
     console.log(`REDRAW ${width}x${height}`);
+
+    d3.select("#map > *").remove();
+
+    const position = [51.505, -0.09]
+    const map = L.map("map").setView(position, 13);
+
+    console.log("DRAWING MAP");
+    console.log(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map)
+
+    L.marker(position)
+      .addTo(map)
+      .bindPopup('A pretty CSS3 popup. <br> Easily customizable.')
+
+    let svg = d3.select(map.getPanes().overlayPane).append("svg")
+                .attr('height', height)
+                .attr('width', width)
+                .attr('id', 'svg-viz')
+                .on("click", ()=>{this.state.signalClicked(null)});
+
+    let g = svg.append("g").attr("class", "leaflet-zoom-hide");
+
+    function projectPoint(x, y) {
+        var point = map.latLngToLayerPoint(new L.LatLng(y, x));
+        this.stream.point(point.x, point.y);
+    }
+
+    let transform = d3.geoTransform({point: projectPoint});
+    let path = d3.geoPath().projection(transform);
 
     if (!width || !height){
       console.log(`Invalid width or height? ${width} x ${height}`);
       return;
     }
-
-    let svg = container.append('svg')
-      .attr('height', height)
-      .attr('width', width)
-      .attr('id', 'svg-viz')
-      .on("click", ()=>{this.state.signalClicked(null)});
 
     let mainGroup = svg;
     this._mainGroup = mainGroup;
@@ -234,6 +252,7 @@ class MetaViewD3 {
   }
 
   draw(){
+    console.log("draw");
     if (!this._is_drawn){
       this.drawFromScratch();
       this._size_changed = false;
